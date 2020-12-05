@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>todos</title>
+    <link rel="stylesheet" href="./reset.css">
+    <link rel="stylesheet" href="./todos.css">
+</head>
+<body>
+    <!-- 1. v-model 在文本框中默认绑定的是 checked -->
+    <div id="app">
+        <div class="todoBox">
+            <div class="title">todos</div>
+            <div class="content">
+                <div class="header">
+                    <span
+                    :class='[{selectAll:calcFlag}]'
+                    @click = 'selectAll'>v</span>
+                    <input type="text" 
+                    placeholder="What needs to do done?" 
+                    v-model='taskVal' 
+                    @keyup.enter='newTask'>
+                </div>
+                <div class="main">
+                    <div class="task" v-for='(item,index) in selectTab' :key='item.id'>
+                        <input type="checkbox" v-model = 'item.checked'>
+                        <div class="change">
+                            <span 
+                            :class = '[{hidden:hiddenIndex === index}]'
+                            @dblclick = 'editTask(index)'
+                            >{{item.text}}</span>
+                            <input type="text"
+                            v-focus
+                            :class = '[{hidden:hiddenIndex !== index}]'
+                            @blur = 'saveTask'
+                            v-model='item.text'>
+                        </div>
+                        <button 
+                        :class = '[{hidden:hiddenIndex === index}]'
+                        @click = 'deleteThisTask(index)'>X</button>
+                    </div>
+                </div>
+                <div class="footer">
+                    <div class="footer-left">
+                        <span>{{unfinishedNum}}</span> item left
+                    </div>
+                    <div class="footer-center">
+                        <span
+                        :class = '[{active:activeItem === "all"}]'
+                        @click = 'setSelectItem("all")'
+                        >All</span>
+                        <span
+                        :class = '[{active:activeItem === "active"}]'
+                        @click = 'setSelectItem("active")'
+                        >Active</span>
+                        <span
+                        :class = '[{active:activeItem === "completed"}]'
+                        @click = 'setSelectItem("completed")'
+                        >Completed</span>
+                    </div>
+                    <div class="footer-right" @click='clearComplete'>Clear completed</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+<script src="./node_modules/vue/dist/vue.js"></script>
+<script>
+    // 思路步骤
+    // 1. 数据渲染
+    // 2. 发布任务模块
+    // 3. 删除当前任务模块
+    // 4. 更改当前编辑任务模块
+    // 5. 全选模块 :点击属性只需要控制下一步是否全选，计算属性控制按钮亮不亮
+    // 6. 底部功能模块
+
+
+    let vm = new Vue({
+        el : '#app',
+
+        data: {
+            taskVal:'', // 储存输入框中的值
+            hiddenIndex:-1, // 控制当前任务的显示隐藏与编辑， -1 显示，0 编辑第一项， 1 编辑第二项
+            activeItem:'all',
+            todos : [
+                {
+                    id : 1,
+                    text : 'apple',
+                    checked : false
+                },
+                {
+                    id : 2,
+                    text : 'banana',
+                    checked : true
+                },
+                {
+                    id : 3,
+                    text : 'orange',
+                    checked : false
+                }
+            ]
+        },
+        directives:{
+            // 定义局部组件 -- 自动聚焦事件
+            focus:function(el){
+                el.focus()
+            }
+        },
+        computed:{
+            calcFlag:function(){
+                let flag = true
+                this.todos.map((item,index)=>{
+                    if(!item.checked){
+                        flag = false
+                    }
+                })
+                if(this.todos.length == 0){
+                    flag = false
+                }
+                return flag
+            },
+
+            // 计算未完成个数
+            unfinishedNum:function(){
+                let num = 0
+                this.todos.map((item,index)=>{
+                    if(!item.checked){
+                        num ++
+                    }
+                })
+                return num
+            },
+
+            // 底部 tab 切换
+            selectTab:function(){
+                if(this.activeItem === 'active'){
+                    return this.todos.filter((item,index)=>{
+                        if(item.checked !== true){
+                            return true
+                        }
+                    })
+                }else if(this.activeItem === 'completed'){
+                    return this.todos.filter((item,index)=>{
+                        if(item.checked === true){
+                            return true
+                        }
+                    })
+                }else {
+                    return this.todos
+                }
+            }
+        },
+        methods:{
+            // 回车发布任务
+            newTask:function(){
+                if(this.taskVal === ''){
+                    return
+                }
+                this.todos.push({
+                    id : Date.now(),
+                    text : this.taskVal,
+                    checked : false
+                })
+                this.taskVal = ''
+            },
+
+            // 删除当前任务项
+            deleteThisTask:function(index){
+                this.todos.splice(index)
+            },
+
+            // 更改当前编辑模块
+            // 双击事件
+            editTask:function(index){
+                this.hiddenIndex = index
+            },
+            // 失焦保存事件
+            saveTask:function(){
+                this.hiddenIndex = -1
+            },
+
+            // 全选按钮
+            selectAll:function(){
+                // 先判断是否全部勾选, flag: true 表示目前全部选中， false 表示至少有一个未选中
+                let flag = this.todos.every((item,index)=>{
+                    return item.checked === true
+                })
+                if(flag){
+                    this.todos.map((item,index)=>{
+                        item.checked = false
+                    })
+                }else {
+                    this.todos.map((item,index)=>{
+                        item.checked = true
+                    })
+                }
+            },
+
+            // 底部功能模块
+            // 底部右侧清除已完成模块
+            clearComplete:function(){
+                // 思路：找到未完成的元素，然后替换掉原来的todos
+                let newTodos = this.todos.filter((item,index)=>{
+                    if(!item.checked === true){
+                        return true
+                    }
+                })
+                this.todos = newTodos
+            },
+            // 底部中间模块
+            setSelectItem:function(item){
+                this.activeItem = item
+                console.log(9);
+            }
+        }
+    })
+</script>
+</html>
